@@ -1,17 +1,99 @@
-<!-- WGBH Lunar Phases Asset 3 -->
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width">
-<meta charset="utf-8">
-<title>WGBH Lunar Phases Asset 3</title>
-<script src="script.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moon Phase Simulation</title>
+
+  <style>
+    .arduino-controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+    }
+
+    .arduino-button {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .arduino-button:hover {
+      background-color: #45a049;
+    }
+
+    .arduino-status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
-<script>
-var sim = new window.WGBH.LunarPhasesAsset3();
-document.body.appendChild(sim.getElement());
-sim.update();
-</script>
+  <div class="arduino-controls">
+    <button id="connectArduino" class="arduino-button">Connect Controller</button>
+    <div id="arduinoStatus" class="arduino-status"></div>
+    <div id="controlModeDisplay" class="arduino-status">Controlling: Moon</div>
+  </div>
+
+  <!-- Load your simulation and controller scripts -->
+  <script src="script.js"></script>
+  <script src="ArduinoController.js"></script>
+
+  <!-- Your setup script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Create simulation and expose it globally
+      const sim = new window.WGBH.LunarPhasesAsset3();
+      window.WGBH.lunarPhasesAsset3 = sim;
+      document.body.appendChild(sim.getElement());
+      sim.update();
+
+      console.log("Simulation structure after update:", sim);
+
+      function waitForOrbitDiagramReady() {
+        const diagram = sim._orbitDiagram;
+        if (diagram && diagram._moon && diagram._earth) {
+          console.log("✅ orbitDiagram and elements are ready");
+
+          const arduinoController = new window.WGBH.ArduinoController(sim);
+          window.arduinoController = arduinoController;
+
+          const connectButton = document.getElementById("connectArduino");
+          const statusDiv = document.getElementById("arduinoStatus");
+
+          connectButton.addEventListener("click", async () => {
+            try {
+              await arduinoController.connect();
+              connectButton.textContent = "Disconnect Controller";
+              statusDiv.textContent =
+                "Arduino connected! Use encoder to control Moon/Earth rotation.";
+
+              connectButton.onclick = async () => {
+                await arduinoController.disconnect();
+                connectButton.textContent = "Connect Controller";
+                statusDiv.textContent = "";
+                connectButton.onclick = null;
+              };
+            } catch (error) {
+              console.error("Failed to connect:", error);
+              statusDiv.textContent =
+                "Failed to connect to Arduino. Please try again.";
+            }
+          });
+        } else {
+          console.log("⏳ Waiting on orbitDiagram._moon and ._earth...");
+          setTimeout(waitForOrbitDiagramReady, 100);
+        }
+      }
+
+      waitForOrbitDiagramReady();
+    });
+  </script>
 </body>
 </html>
